@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Aggressive Security & Tender Portal Test Bed</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 30px;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #f1f5f9;
+      color: #1e293b;
+      /* Simulated CSS Lock */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    .container {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .section {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      margin-top: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .log-box {
+      margin-top: 15px;
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: monospace;
+      padding: 12px;
+      border-radius: 8px;
+      height: 120px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+    }
+  </style>
+</head>
+<body oncontextmenu="return false;" onselectstart="return false;" oncopy="return false;" onpaste="return false;">
+
+  <div class="container">
+    <h1>Restricted Test Site (Simulating eprocure.gov.bd tender traps)</h1>
+    <div class="badge">SECURITY ACTIVE: Right-Click, Selection, Copy & Paste Blocked</div>
+
+    <div class="section">
+      <h3>1. Restricted Text Selection & Right-Click</h3>
+      <p id="testText">
+        This is a sensitive paragraph containing tender information, BOQ rates, and submission details.
+        Try selecting this text, right-clicking to inspect, or copying it. Under default page rules, this is completely blocked!
+      </p>
+    </div>
+
+    <div class="section">
+      <h3>2. e-GP Tender Form Field (Blocked Paste & Copy)</h3>
+      <label for="tenderPrice">Tender Financial Rate / Bank Guarantee ID:</label>
+      <input type="text" id="tenderPrice" class="input-field" 
+             placeholder="Try pasting any text here (normally blocked by onpaste='return false;')" 
+             onpaste="return false;" oncopy="return false;" oncut="return false;" autocomplete="off">
+    </div>
+
+    <div class="section">
+      <h3>3. BOQ Tender Rates Table</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Item No</th>
+            <th>Description</th>
+            <th>Unit Price (BDT)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1.01</td>
+            <td>Supply & installation of high voltage switchgear</td>
+            <td>1,250,000.00</td>
+          </tr>
+          <tr>
+            <td>1.02</td>
+            <td>Substation civil work and earthing</td>
+            <td>450,000.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3>4. e-GP New Tab Link Trap (Simulating "Due to security reason, New Tab is not allowed")</h3>
+      <p>Try holding <kbd>Ctrl</kbd> and clicking this link, or right-clicking to open in new tab:</p>
+      <a href="https://www.eprocure.gov.bd/" id="testTenderLink" style="color: #0284c7; font-weight: 700; text-decoration: underline; font-size: 15px;">
+        🔗 Tender Notice: Construction of underground irrigation channel (ID: 1340029)
+      </a>
+    </div>
+
+    <div class="section">
+      <h3>Event Interception Activity Log:</h3>
+      <div id="logBox" class="log-box">Site loaded with blockers active...<br></div>
+    </div>
+  </div>
+
+  <script>
+    function log(msg) {
+      const box = document.getElementById('logBox');
+      const time = new Date().toLocaleTimeString();
+      box.innerHTML += `[${time}] ${msg}<br>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Exact simulation of eprocure.gov.bd New Tab blocker
+    document.getElementById('testTenderLink').addEventListener('click', function(e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
+        alert("Due to security reason, New Tab is not allowed");
+        e.preventDefault();
+        log('❌ e-GP Blocker triggered: Due to security reason, New Tab is not allowed');
+        return false;
+      }
+      log('ℹ️ Normal click on tender link');
+    });
+
+    // Capture-phase blockers commonly used by aggressive sites
+    document.addEventListener('contextmenu', function(e) {
+      log('⚠️ Native contextmenu event fired (Blocked by site listener if unblocker not present)');
+    }, true);
+
+    document.addEventListener('copy', function(e) {
+      log('⚠️ Native copy event fired');
+    }, true);
+
+    document.addEventListener('paste', function(e) {
+      log('⚠️ Native paste event fired on: ' + (e.target.id || e.target.tagName));
+    }, true);
+
+    // Keyboard blocker for Ctrl+C and Ctrl+V
+    window.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v')) {
+        log(`⌨️ Pressed Ctrl+${e.key.toUpperCase()}`);
+      }
+    }, true);
+  </script>
+</body>
+</html>

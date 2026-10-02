@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amaz Right Click Pro</title>
+  <link rel="stylesheet" href="popup.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header Section with Single Master Toggle -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-wrapper">
+          <img src="../icons/icon-48.png" alt="Logo" class="logo-img">
+          <div class="status-pulse" id="statusPulse"></div>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">Amaz Right Click <span>Pro</span></h1>
+          <p class="brand-subtitle">Smart Unblocker & Form Enabler</p>
+        </div>
+      </div>
+      <div class="master-switch-wrapper">
+        <label class="switch" title="Master Toggle (ON / OFF)">
+          <input type="checkbox" id="masterToggle" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </header>
+
+    <!-- e-GP Detected Banner (Visible on eprocure.gov.bd) -->
+    <div class="egp-banner" id="egpBanner" style="display: none;">
+      <div class="egp-icon">🏛️</div>
+      <div class="egp-content">
+        <div class="egp-title">e-GP Bangladesh Detected!</div>
+        <div class="egp-desc">Tender forms, Ctrl+Click (New Tab), right-click & paste are fully unlocked.</div>
+      </div>
+      <div class="egp-badge">Ready</div>
+    </div>
+
+    <!-- Current Site Status Card (Single Unified Status) -->
+    <div class="site-card">
+      <div class="site-info">
+        <span class="site-label">Current Website</span>
+        <span class="site-domain" id="siteDomain">Detecting...</span>
+      </div>
+      <div class="site-status-badge" id="siteStatusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="siteStatusText">Active</span>
+      </div>
+    </div>
+
+    <!-- Quick Action Button -->
+    <div class="quick-action-section">
+      <button class="btn-primary" id="forceUnlockBtn">
+        <span class="btn-icon">⚡</span>
+        <span class="btn-text">Force Unlock This Page</span>
+      </button>
+    </div>
+
+    <!-- Feature Switches List -->
+    <div class="features-list">
+      <!-- Right Click -->
+      <div class="feature-item">
+        <div class="feature-left">
+          <span class="feature-icon">🖱️</span>
+          <div class="feature-meta">
+            <span class="feature-name">Right Click Menu</span>
+            <span class="feature-desc">Context menu & inspect element</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="toggleRightClick" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- New Tab (Ctrl+Click) - e-GP fix -->
+      <div class="feature-item highlight-item">
+        <div class="feature-left">
+          <span class="feature-icon">📑</span>
+          <div class="feature-meta">
+            <span class="feature-name">New Tab (Ctrl+Click)</span>
+            <span class="feature-desc">Bypass "New Tab is not allowed" alerts</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="toggleNewTab" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- Copy / Cut -->
+      <div class="feature-item">
+        <div class="feature-left">
+          <span class="feature-icon">📋</span>
+          <div class="feature-meta">
+            <span class="feature-name">Copy & Cut</span>
+            <span class="feature-desc">Unlock copying from restricted text</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="toggleCopy" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- Paste Unlock (Super important for tender forms) -->
+      <div class="feature-item highlight-item">
+        <div class="feature-left">
+          <span class="feature-icon">📝</span>
+          <div class="feature-meta">
+            <span class="feature-name">Paste into Forms</span>
+            <span class="feature-desc">Unblock paste in tender & input fields</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="togglePaste" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- Text Selection -->
+      <div class="feature-item">
+        <div class="feature-left">
+          <span class="feature-icon">🔤</span>
+          <div class="feature-meta">
+            <span class="feature-name">Text Selection</span>
+            <span class="feature-desc">Highlight & drag unselectable text</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="toggleSelect" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- Shortcuts -->
+      <div class="feature-item">
+        <div class="feature-left">
+          <span class="feature-icon">⌨️</span>
+          <div class="feature-meta">
+            <span class="feature-name">Shortcuts Unlock</span>
+            <span class="feature-desc">Ctrl+C, Ctrl+V, Ctrl+A, F12</span>
+          </div>
+        </div>
+        <label class="switch sm">
+          <input type="checkbox" id="toggleShortcuts" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <!-- Absolute Mode (Deep Unlock) -->
+      <div class="feature-item absolute-mode-item">
+        <div class="feature-left">
+          <span class="feature-icon">🛡️</span>
+          <div class="feature-meta">
+            <span class="feature-name">Absolute Mode (Deep)</span>
+            <span class="feature-desc">Aggressive script & overlay killer</span>
+          </div>
+        </div>
+        <label class="switch sm switch-amber">
+          <input type="checkbox" id="toggleAbsoluteMode">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Bengali Support / Tips Box -->
+    <div class="tender-tip-box">
+      <div class="tip-icon">💡</div>
+      <div class="tip-text">
+        <strong>e-GP টেন্ডার টিপ:</strong> টেন্ডার লিস্টের লিংকে <strong>Ctrl + Click</strong> করলেই নতুন ট্যাবে ওপেন হবে এবং কোনো সতর্কবার্তা আসবে না।
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span class="version-tag">Amaz Pro v1.1.0</span>
+      <span class="footer-status" id="footerStatus">System Running</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

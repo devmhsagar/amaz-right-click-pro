@@ -1,0 +1,121 @@
+/* Amaz Right Click Pro - Scoped Unlock Stylesheet */
+/* Rules only apply when html has class 'amaz-unlocked' (i.e. extension is ACTIVE) */
+
+html.amaz-unlocked,
+html.amaz-unlocked body,
+html.amaz-unlocked div,
+html.amaz-unlocked span,
+html.amaz-unlocked applet,
+html.amaz-unlocked object,
+html.amaz-unlocked iframe,
+html.amaz-unlocked h1,
+html.amaz-unlocked h2,
+html.amaz-unlocked h3,
+html.amaz-unlocked h4,
+html.amaz-unlocked h5,
+html.amaz-unlocked h6,
+html.amaz-unlocked p,
+html.amaz-unlocked blockquote,
+html.amaz-unlocked pre,
+html.amaz-unlocked a,
+html.amaz-unlocked abbr,
+html.amaz-unlocked acronym,
+html.amaz-unlocked address,
+html.amaz-unlocked big,
+html.amaz-unlocked cite,
+html.amaz-unlocked code,
+html.amaz-unlocked del,
+html.amaz-unlocked dfn,
+html.amaz-unlocked em,
+html.amaz-unlocked img,
+html.amaz-unlocked ins,
+html.amaz-unlocked kbd,
+html.amaz-unlocked q,
+html.amaz-unlocked s,
+html.amaz-unlocked samp,
+html.amaz-unlocked small,
+html.amaz-unlocked strike,
+html.amaz-unlocked strong,
+html.amaz-unlocked sub,
+html.amaz-unlocked sup,
+html.amaz-unlocked tt,
+html.amaz-unlocked var,
+html.amaz-unlocked b,
+html.amaz-unlocked u,
+html.amaz-unlocked i,
+html.amaz-unlocked center,
+html.amaz-unlocked dl,
+html.amaz-unlocked dt,
+html.amaz-unlocked dd,
+html.amaz-unlocked ol,
+html.amaz-unlocked ul,
+html.amaz-unlocked li,
+html.amaz-unlocked fieldset,
+html.amaz-unlocked form,
+html.amaz-unlocked label,
+html.amaz-unlocked legend,
+html.amaz-unlocked table,
+html.amaz-unlocked caption,
+html.amaz-unlocked tbody,
+html.amaz-unlocked tfoot,
+html.amaz-unlocked thead,
+html.amaz-unlocked tr,
+html.amaz-unlocked th,
+html.amaz-unlocked td,
+html.amaz-unlocked article,
+html.amaz-unlocked aside,
+html.amaz-unlocked canvas,
+html.amaz-unlocked details,
+html.amaz-unlocked embed,
+html.amaz-unlocked figure,
+html.amaz-unlocked figcaption,
+html.amaz-unlocked footer,
+html.amaz-unlocked header,
+html.amaz-unlocked hgroup,
+html.amaz-unlocked menu,
+html.amaz-unlocked nav,
+html.amaz-unlocked output,
+html.amaz-unlocked ruby,
+html.amaz-unlocked section,
+html.amaz-unlocked summary,
+html.amaz-unlocked time,
+html.amaz-unlocked mark,
+html.amaz-unlocked audio,
+html.amaz-unlocked video {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
+/* Form inputs must always allow selection, typing, and pasting */
+html.amaz-unlocked input,
+html.amaz-unlocked textarea,
+html.amaz-unlocked select,
+html.amaz-unlocked [contenteditable="true"],
+html.amaz-unlocked [contenteditable=""],
+html.amaz-unlocked [contenteditable] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure mouse pointers and links are not disabled */
+html.amaz-unlocked * {
+  -webkit-user-drag: auto !important;
+  user-drag: auto !important;
+}
+
+/* Prevent hidden selection highlights */
+html.amaz-unlocked ::selection {
+  background-color: #38bdf8 !important;
+  color: #0f172a !important;
+}
+
+html.amaz-unlocked ::-moz-selection {
+  background-color: #38bdf8 !important;
+  color: #0f172a !important;
+}
