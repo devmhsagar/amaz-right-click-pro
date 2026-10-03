@@ -1,10 +1,12 @@
 /**
  * Amaz Right Click Pro - Background Service Worker
- * Manages defaults, context menus, badge indicators, and extension lifecycle.
+ * Per-site badge tracking, context menus, and storage initialization.
  */
 
 const DEFAULT_SETTINGS = {
   enabled: true,
+  globalMode: false,
+  enabledSites: ['eprocure.gov.bd'],
   absoluteMode: false,
   allowRightClick: true,
   allowNewTab: true,
@@ -12,8 +14,7 @@ const DEFAULT_SETTINGS = {
   allowPaste: true,
   allowSelect: true,
   allowShortcuts: true,
-  suppressAlerts: true,
-  disabledSites: []
+  suppressAlerts: true
 };
 
 // Initialize settings on installation
@@ -27,11 +28,19 @@ chrome.runtime.onInstalled.addListener(async () => {
     }
   }
 
+  // Ensure eprocure.gov.bd is in enabledSites
+  if (Array.isArray(existing.enabledSites)) {
+    if (!existing.enabledSites.includes('eprocure.gov.bd')) {
+      toSet.enabledSites = [...existing.enabledSites, 'eprocure.gov.bd'];
+    }
+  } else {
+    toSet.enabledSites = ['eprocure.gov.bd'];
+  }
+
   if (Object.keys(toSet).length > 0) {
     await chrome.storage.local.set(toSet);
   }
 
-  // Create context menu items
   chrome.contextMenus.removeAll(async () => {
     chrome.contextMenus.create({
       id: 'unlock_page',
@@ -46,7 +55,82 @@ chrome.runtime.onInstalled.addListener(async () => {
     });
   });
 
-  await updateBadge();
+  await updateBadgeForActiveTab();
+});
+
+// Helper to determine if a domain is active
+function isDomainActive(hostname, settings) {
+  if (!settings.enabled) return false;
+  if (settings.globalMode) return true;
+  if (!hostname || !Array.isArray(settings.enabledSites)) return false;
+  const host = hostname.toLowerCase().trim();
+  return settings.enabledSites.some(site => {
+    const s = site.toLowerCase().trim();
+    return host === s || host.endsWith('.' + s);
+  });
+}
+
+// Update Action badge for the currently focused tab
+async function updateBadgeForActiveTab(tabId) {
+  try {
+    let targetTab = null;
+    if (tabId) {
+      targetTab = await chrome.tabs.get(tabId).catch(() => null);
+    }
+    if (!targetTab) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      targetTab = tab;
+    }
+
+    if (!targetTab || !targetTab.url) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+
+    let hostname = '';
+    try {
+      hostname = new URL(targetTab.url).hostname;
+    } catch (e) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+
+    const settings = await chrome.storage.local.get(DEFAULT_SETTINGS);
+    const active = isDomainActive(hostname, settings);
+
+    if (active) {
+      if (settings.absoluteMode) {
+        await chrome.action.setBadgeText({ text: 'ABS', tabId: targetTab.id });
+        await chrome.action.setBadgeBackgroundColor({ color: '#f59e0b', tabId: targetTab.id });
+      } else {
+        await chrome.action.setBadgeText({ text: 'ON', tabId: targetTab.id });
+        await chrome.action.setBadgeBackgroundColor({ color: '#10b981', tabId: targetTab.id });
+      }
+    } else {
+      await chrome.action.setBadgeText({ text: '', tabId: targetTab.id });
+    }
+  } catch (err) {
+    // Ignore transient errors on system pages
+  }
+}
+
+// Update badge when user switches tabs
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  await updateBadgeForActiveTab(activeInfo.tabId);
+});
+
+// Update badge when a tab changes URL or reloads
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || changeInfo.url) {
+    await updateBadgeForActiveTab(tabId);
+  }
+});
+
+// Update badge when settings change
+chrome.storage.onChanged.addListener(async (changes, areaName) => {
+  if (areaName === 'local') {
+    await updateBadgeForActiveTab();
+  }
 });
 
 // Context menu click handler
@@ -66,9 +150,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             window.postMessage({ source: 'AMAZ_RIGHT_CLICK_EXT', action: 'UPDATE_CONFIG', payload: { enabled: true } }, '*');
           }
         });
-      } catch (e) {
-        console.warn('Could not inject script:', e);
-      }
+      } catch (e) { }
     }
   } else if (info.menuItemId === 'toggle_absolute') {
     const { absoluteMode = false } = await chrome.storage.local.get('absoluteMode');
@@ -77,30 +159,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'UPDATE_CONFIG', payload: { absoluteMode: newMode } });
     } catch (err) { }
-    await updateBadge();
-  }
-});
-
-// Update Action badge based on settings
-async function updateBadge() {
-  const { enabled = true, absoluteMode = false } = await chrome.storage.local.get(['enabled', 'absoluteMode']);
-
-  if (!enabled) {
-    await chrome.action.setBadgeText({ text: 'OFF' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#64748b' });
-  } else if (absoluteMode) {
-    await chrome.action.setBadgeText({ text: 'ABS' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#f59e0b' });
-  } else {
-    await chrome.action.setBadgeText({ text: 'ON' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
-  }
-}
-
-chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  if (areaName === 'local') {
-    if (changes.enabled || changes.absoluteMode) {
-      await updateBadge();
-    }
+    await updateBadgeForActiveTab(tab.id);
   }
 });

@@ -1,6 +1,7 @@
 /**
  * Amaz Right Click Pro - Main World Script
- * Injected at document_start in the MAIN world to patch prototypes before any website scripts load.
+ * Injected at document_start in the MAIN world to patch prototypes before website scripts load.
+ * Engineered for zero-lag, no duplicate copy, and per-site isolation.
  */
 
 (function () {
@@ -9,9 +10,9 @@
   if (window.__AMAZ_RIGHT_CLICK_INSTALLED__) return;
   window.__AMAZ_RIGHT_CLICK_INSTALLED__ = true;
 
-  // Active configuration
+  // Active configuration (defaults to false until content script confirms site is enabled)
   const config = {
-    enabled: true,
+    enabled: false,
     absoluteMode: false,
     allowRightClick: true,
     allowCopy: true,
@@ -25,6 +26,7 @@
   window.__AMAZ_RIGHT_CLICK_STATE__ = config;
 
   let isProtectedEventActive = false;
+  let wasDataTransferSetCalled = false;
 
   const PROTECTED_EVENTS = new Set([
     'contextmenu',
@@ -50,59 +52,89 @@
   ];
 
   /* -------------------------------------------------------------
-   * 1. Patch Event.prototype.preventDefault
+   * 1. Track legitimate DataTransfer.setData to fix Duplicate Copy
+   * ----------------------------------------------------------- */
+  if (typeof DataTransfer !== 'undefined' && DataTransfer.prototype) {
+    const originalSetData = DataTransfer.prototype.setData;
+    DataTransfer.prototype.setData = function (format, data) {
+      wasDataTransferSetCalled = true;
+      return originalSetData.apply(this, arguments);
+    };
+  }
+
+  // Reset dataTransfer flag at window level before copy starts
+  window.addEventListener('copy', function () {
+    wasDataTransferSetCalled = false;
+  }, true);
+
+  window.addEventListener('cut', function () {
+    wasDataTransferSetCalled = false;
+  }, true);
+
+  /* -------------------------------------------------------------
+   * 2. Patch Event.prototype.preventDefault
    * ----------------------------------------------------------- */
   const originalPreventDefault = Event.prototype.preventDefault;
   Event.prototype.preventDefault = function () {
-    if (config.enabled) {
-      const type = this.type;
+    if (config.enabled && this) {
+      try {
+        const type = this.type;
 
-      // 1. Bypass Ctrl+Click / Shift+Click / Middle-Click on links to allow opening in New Tab (e-GP fix)
-      if (config.allowNewTab && (type === 'click' || type === 'auxclick' || type === 'mousedown' || type === 'mouseup')) {
-        if (this.ctrlKey || this.metaKey || this.shiftKey || this.button === 1) {
-          // Never allow site to prevent opening in a new tab!
-          return;
+        // 1. Bypass Ctrl+Click / Shift+Click / Middle-Click on links (New Tab fix for e-GP)
+        if (config.allowNewTab && (type === 'click' || type === 'auxclick' || type === 'mousedown' || type === 'mouseup')) {
+          if (this.ctrlKey || this.metaKey || this.shiftKey || this.button === 1) {
+            return;
+          }
         }
-      }
 
-      // 2. Bypass contextmenu prevention
-      if (type === 'contextmenu' && config.allowRightClick) {
-        return;
-      }
-
-      // 3. Bypass clipboard prevention (copy/cut)
-      if ((type === 'copy' || type === 'cut') && config.allowCopy) {
-        return;
-      }
-
-      // 4. Bypass paste prevention (vital for e-GP forms)
-      if ((type === 'paste' || type === 'beforepaste') && config.allowPaste) {
-        return;
-      }
-
-      // 5. Bypass text selection & drag prevention
-      if ((type === 'selectstart' || type === 'selectionchange' || type === 'dragstart') && config.allowSelect) {
-        return;
-      }
-
-      // 6. Bypass mouse button 2 (right-click) prevention in mousedown/mouseup/click
-      if ((type === 'mousedown' || type === 'mouseup' || type === 'click' || type === 'pointerdown' || type === 'pointerup') && this.button === 2 && config.allowRightClick) {
-        return;
-      }
-
-      // 7. Bypass shortcut prevention (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, F12, etc.)
-      if ((type === 'keydown' || type === 'keyup' || type === 'keypress') && config.allowShortcuts) {
-        const key = this.key ? this.key.toLowerCase() : '';
-        const code = this.code || '';
-        const isCtrlOrMeta = this.ctrlKey || this.metaKey;
-
-        if (isCtrlOrMeta && (key === 'c' || key === 'v' || key === 'x' || key === 'a' || code === 'Insert')) {
+        // 2. Bypass contextmenu prevention
+        if (type === 'contextmenu' && config.allowRightClick) {
           return;
         }
 
-        if (key === 'f12' || (isCtrlOrMeta && (key === 'u' || (this.shiftKey && (key === 'i' || key === 'j' || key === 'c'))))) {
+        // 3. Bypass copy/cut prevention — with DUPLICATE COPY FIX
+        if ((type === 'copy' || type === 'cut') && config.allowCopy) {
+          // If the website legitimately set custom data in e.clipboardData via setData(),
+          // we MUST allow preventDefault() so Chrome doesn't double-copy the text!
+          if (wasDataTransferSetCalled) {
+            return originalPreventDefault.apply(this, arguments);
+          }
+          // If no data was set, the website is simply blocking the user from copying!
+          // Suppress preventDefault so native selection is copied once.
           return;
         }
+
+        // 4. Bypass paste prevention (vital for e-GP tender forms)
+        if ((type === 'paste' || type === 'beforepaste') && config.allowPaste) {
+          return;
+        }
+
+        // 5. Bypass text selection & drag prevention
+        if ((type === 'selectstart' || type === 'selectionchange' || type === 'dragstart') && config.allowSelect) {
+          return;
+        }
+
+        // 6. Bypass mouse button 2 (right-click) prevention in mousedown/mouseup/click
+        if ((type === 'mousedown' || type === 'mouseup' || type === 'click' || type === 'pointerdown' || type === 'pointerup') && this.button === 2 && config.allowRightClick) {
+          return;
+        }
+
+        // 7. Bypass shortcut prevention (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, F12, etc.)
+        if ((type === 'keydown' || type === 'keyup' || type === 'keypress') && config.allowShortcuts) {
+          const key = this.key ? this.key.toLowerCase() : '';
+          const code = this.code || '';
+          const isCtrlOrMeta = this.ctrlKey || this.metaKey;
+
+          if (isCtrlOrMeta && (key === 'c' || key === 'v' || key === 'x' || key === 'a' || code === 'Insert')) {
+            return;
+          }
+
+          if (key === 'f12' || (isCtrlOrMeta && (key === 'u' || (this.shiftKey && (key === 'i' || key === 'j' || key === 'c'))))) {
+            return;
+          }
+        }
+      } catch (err) {
+        return originalPreventDefault.apply(this, arguments);
       }
     }
 
@@ -110,27 +142,27 @@
   };
 
   /* -------------------------------------------------------------
-   * 2. Patch Event.prototype.stopPropagation & stopImmediatePropagation
+   * 3. Patch Event.prototype.stopPropagation & stopImmediatePropagation
    * ----------------------------------------------------------- */
   const originalStopPropagation = Event.prototype.stopPropagation;
   const originalStopImmediatePropagation = Event.prototype.stopImmediatePropagation;
 
   Event.prototype.stopPropagation = function () {
-    if (config.enabled && config.absoluteMode && PROTECTED_EVENTS.has(this.type)) {
+    if (config.enabled && config.absoluteMode && this && PROTECTED_EVENTS.has(this.type)) {
       return;
     }
     return originalStopPropagation.apply(this, arguments);
   };
 
   Event.prototype.stopImmediatePropagation = function () {
-    if (config.enabled && config.absoluteMode && PROTECTED_EVENTS.has(this.type)) {
+    if (config.enabled && config.absoluteMode && this && PROTECTED_EVENTS.has(this.type)) {
       return;
     }
     return originalStopImmediatePropagation.apply(this, arguments);
   };
 
   /* -------------------------------------------------------------
-   * 3. Patch EventTarget.prototype.addEventListener & removeEventListener
+   * 4. Patch EventTarget.prototype.addEventListener & removeEventListener
    * ----------------------------------------------------------- */
   const originalAddEventListener = EventTarget.prototype.addEventListener;
   const originalRemoveEventListener = EventTarget.prototype.removeEventListener;
@@ -140,14 +172,14 @@
     if (config.enabled && typeof listener === 'function') {
       const lowerType = String(type).toLowerCase();
 
-      // Only wrap protected events (contextmenu, copy, cut, paste, selectstart, dragstart)
-      if (PROTECTED_EVENTS.has(lowerType)) {
+      // Only wrap protected blocker events (contextmenu, selectstart, dragstart)
+      // Do NOT wrap copy/cut/paste so custom copy buttons work without interference
+      if (lowerType === 'contextmenu' || lowerType === 'selectstart' || lowerType === 'dragstart') {
         const wrapped = function (e) {
           try {
             isProtectedEventActive = true;
             const res = listener.apply(this, arguments);
             isProtectedEventActive = false;
-            // Catch jQuery "return false" which triggers preventDefault & stopPropagation
             return res === false ? undefined : res;
           } catch (err) {
             isProtectedEventActive = false;
@@ -172,7 +204,7 @@
   };
 
   /* -------------------------------------------------------------
-   * 4. Neutralize Property Setters on Prototypes
+   * 5. Neutralize Property Setters on Prototypes
    * ----------------------------------------------------------- */
   function patchPrototypeProperties(proto) {
     for (const prop of BLOCKED_PROPERTIES) {
@@ -208,7 +240,7 @@
   }
 
   /* -------------------------------------------------------------
-   * 5. Suppress Blocker Alert Dialogs
+   * 6. Suppress Blocker Alert Dialogs
    * ----------------------------------------------------------- */
   const originalAlert = window.alert;
   const originalConfirm = window.confirm;
@@ -255,7 +287,7 @@
   };
 
   /* -------------------------------------------------------------
-   * 6. Selection Protection
+   * 7. Selection Protection
    * ----------------------------------------------------------- */
   if (typeof Selection !== 'undefined' && Selection.prototype) {
     const originalRemoveAllRanges = Selection.prototype.removeAllRanges;
@@ -279,7 +311,7 @@
   }
 
   /* -------------------------------------------------------------
-   * 7. Listen for messages from ISOLATED world (content.js)
+   * 8. Listen for messages from ISOLATED world (content.js)
    * ----------------------------------------------------------- */
   window.addEventListener('message', function (event) {
     if (event.source !== window || !event.data || event.data.source !== 'AMAZ_RIGHT_CLICK_EXT') {

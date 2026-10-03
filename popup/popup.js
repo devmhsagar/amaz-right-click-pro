@@ -1,11 +1,16 @@
 /**
  * Amaz Right Click Pro - Popup Script
- * Single Unified Master Switch & Settings Sync
+ * Per-site activation model with visual sub-switch disabling when site is inactive.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
   // DOM Elements
-  const masterToggle = document.getElementById('masterToggle');
+  const siteToggle = document.getElementById('siteToggle');
+  const siteActivationCard = document.getElementById('siteActivationCard');
+  const siteDomain = document.getElementById('siteDomain');
+  const offNotice = document.getElementById('offNotice');
+  const featuresContainer = document.getElementById('featuresContainer');
+
   const toggleRightClick = document.getElementById('toggleRightClick');
   const toggleNewTab = document.getElementById('toggleNewTab');
   const toggleCopy = document.getElementById('toggleCopy');
@@ -14,7 +19,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleShortcuts = document.getElementById('toggleShortcuts');
   const toggleAbsoluteMode = document.getElementById('toggleAbsoluteMode');
   
-  const siteDomain = document.getElementById('siteDomain');
   const siteStatusBadge = document.getElementById('siteStatusBadge');
   const siteStatusText = document.getElementById('siteStatusText');
   const egpBanner = document.getElementById('egpBanner');
@@ -33,32 +37,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentTab.url) {
         try {
           const parsed = new URL(currentTab.url);
-          currentHost = parsed.hostname;
+          currentHost = parsed.hostname.toLowerCase().trim();
         } catch (e) {
           currentHost = '';
         }
       }
     }
   } catch (err) {
-    console.warn('Error querying tab:', err);
+    console.warn('[Amaz Right Click Pro] Tab query error:', err);
   }
 
-  // Update site info
+  // Update site domain display
   if (currentHost) {
     siteDomain.textContent = currentHost;
-    if (currentHost.includes('eprocure.gov.bd')) {
-      egpBanner.style.display = 'flex';
-    } else {
-      egpBanner.style.display = 'none';
-    }
   } else {
     siteDomain.textContent = 'Special Page';
-    egpBanner.style.display = 'none';
   }
 
-  // Load stored settings
+  // Default configuration
   const defaults = {
     enabled: true,
+    globalMode: false,
+    enabledSites: ['eprocure.gov.bd'],
     absoluteMode: false,
     allowRightClick: true,
     allowNewTab: true,
@@ -71,8 +71,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const stored = await chrome.storage.local.get(defaults);
 
+  // Check if current site is active
+  function isCurrentSiteActive(settings) {
+    if (!settings.enabled) return false;
+    if (settings.globalMode) return true;
+    if (!currentHost || !Array.isArray(settings.enabledSites)) return false;
+    return settings.enabledSites.some(site => {
+      const s = site.toLowerCase().trim();
+      return currentHost === s || currentHost.endsWith('.' + s);
+    });
+  }
+
   // Sync checkboxes
-  masterToggle.checked = stored.enabled;
   toggleRightClick.checked = stored.allowRightClick;
   if (toggleNewTab) toggleNewTab.checked = stored.allowNewTab;
   toggleCopy.checked = stored.allowCopy;
@@ -81,90 +91,127 @@ document.addEventListener('DOMContentLoaded', async () => {
   toggleShortcuts.checked = stored.allowShortcuts;
   toggleAbsoluteMode.checked = stored.absoluteMode;
 
-  updateGlobalUI(stored.enabled);
+  // Initial UI Render
+  updateSiteActivationUI(isCurrentSiteActive(stored));
 
-  // Helper to save and dispatch updates
-  async function saveSetting(key, value) {
+  function updateSiteActivationUI(isActive) {
+    siteToggle.checked = isActive;
+
+    if (isActive) {
+      siteActivationCard.classList.add('active');
+      offNotice.style.display = 'none';
+      featuresContainer.classList.remove('disabled-features');
+      
+      // Enable inputs in features list
+      setFeaturesDisabled(false);
+
+      statusPulse.classList.remove('inactive');
+      siteStatusBadge.classList.remove('paused');
+
+      const isEprocure = currentHost.includes('eprocure.gov.bd');
+      if (isEprocure) {
+        siteStatusText.textContent = 'e-GP Mode Active';
+        egpBanner.style.display = 'flex';
+      } else {
+        siteStatusText.textContent = 'Active (This Site)';
+        egpBanner.style.display = 'none';
+      }
+
+      footerStatus.textContent = 'System Active & Protecting';
+      footerStatus.style.color = '#34d399';
+    } else {
+      siteActivationCard.classList.remove('active');
+      offNotice.style.display = 'block';
+      featuresContainer.classList.add('disabled-features');
+
+      // Disable inputs in features list
+      setFeaturesDisabled(true);
+
+      statusPulse.classList.add('inactive');
+      siteStatusBadge.classList.add('paused');
+      siteStatusText.textContent = 'Inactive (This Site)';
+      egpBanner.style.display = 'none';
+
+      footerStatus.textContent = 'Extension Off on this Site';
+      footerStatus.style.color = '#94a3b8';
+    }
+  }
+
+  function setFeaturesDisabled(disabled) {
+    toggleRightClick.disabled = disabled;
+    if (toggleNewTab) toggleNewTab.disabled = disabled;
+    toggleCopy.disabled = disabled;
+    togglePaste.disabled = disabled;
+    toggleSelect.disabled = disabled;
+    toggleShortcuts.disabled = disabled;
+    toggleAbsoluteMode.disabled = disabled;
+  }
+
+  // Main Site Activation Toggle Listener
+  siteToggle.addEventListener('change', async () => {
+    if (!currentHost) return;
+    const shouldEnable = siteToggle.checked;
+    const current = await chrome.storage.local.get(defaults);
+    const sites = Array.isArray(current.enabledSites) ? [...current.enabledSites] : [];
+    const index = sites.findIndex(s => s.toLowerCase().trim() === currentHost);
+
+    if (shouldEnable) {
+      if (index === -1) sites.push(currentHost);
+    } else {
+      if (index > -1) sites.splice(index, 1);
+    }
+
+    await chrome.storage.local.set({ enabledSites: sites });
+    updateSiteActivationUI(shouldEnable);
+
+    // Notify tab
+    if (currentTab && currentTab.id) {
+      try {
+        await chrome.tabs.sendMessage(currentTab.id, {
+          action: 'UPDATE_CONFIG',
+          payload: { enabledSites: sites }
+        });
+      } catch (err) { }
+    }
+  });
+
+  // Helper to save sub-feature settings
+  async function saveFeatureSetting(key, value) {
     const update = {};
     update[key] = value;
     await chrome.storage.local.set(update);
-    dispatchConfigToTab(update);
-  }
-
-  async function dispatchConfigToTab(payload) {
-    if (!currentTab || !currentTab.id) return;
-    try {
-      await chrome.tabs.sendMessage(currentTab.id, {
-        action: 'UPDATE_CONFIG',
-        payload: payload
-      });
-    } catch (err) {
-      // Content script may not be loaded on internal pages
+    if (currentTab && currentTab.id) {
+      try {
+        await chrome.tabs.sendMessage(currentTab.id, {
+          action: 'UPDATE_CONFIG',
+          payload: update
+        });
+      } catch (err) { }
     }
   }
 
-  function updateGlobalUI(isEnabled) {
-    if (isEnabled) {
-      statusPulse.classList.remove('inactive');
-      footerStatus.textContent = 'System Active & Protecting';
-      footerStatus.style.color = '#34d399';
-
-      if (siteStatusBadge) {
-        siteStatusBadge.classList.remove('paused');
-        siteStatusText.textContent = currentHost.includes('eprocure.gov.bd') ? 'e-GP Protected' : 'Active';
-      }
-    } else {
-      statusPulse.classList.add('inactive');
-      footerStatus.textContent = 'Extension Paused (OFF)';
-      footerStatus.style.color = '#94a3b8';
-
-      if (siteStatusBadge) {
-        siteStatusBadge.classList.add('paused');
-        siteStatusText.textContent = 'Paused';
-      }
-    }
-  }
-
-  // Single Master Toggle Listener
-  masterToggle.addEventListener('change', async () => {
-    const val = masterToggle.checked;
-    await saveSetting('enabled', val);
-    updateGlobalUI(val);
-  });
-
-  toggleRightClick.addEventListener('change', async () => {
-    await saveSetting('allowRightClick', toggleRightClick.checked);
-  });
-
-  if (toggleNewTab) {
-    toggleNewTab.addEventListener('change', async () => {
-      await saveSetting('allowNewTab', toggleNewTab.checked);
-    });
-  }
-
-  toggleCopy.addEventListener('change', async () => {
-    await saveSetting('allowCopy', toggleCopy.checked);
-  });
-
-  togglePaste.addEventListener('change', async () => {
-    await saveSetting('allowPaste', togglePaste.checked);
-  });
-
-  toggleSelect.addEventListener('change', async () => {
-    await saveSetting('allowSelect', toggleSelect.checked);
-  });
-
-  toggleShortcuts.addEventListener('change', async () => {
-    await saveSetting('allowShortcuts', toggleShortcuts.checked);
-  });
-
-  toggleAbsoluteMode.addEventListener('change', async () => {
-    await saveSetting('absoluteMode', toggleAbsoluteMode.checked);
-  });
+  toggleRightClick.addEventListener('change', () => saveFeatureSetting('allowRightClick', toggleRightClick.checked));
+  if (toggleNewTab) toggleNewTab.addEventListener('change', () => saveFeatureSetting('allowNewTab', toggleNewTab.checked));
+  toggleCopy.addEventListener('change', () => saveFeatureSetting('allowCopy', toggleCopy.checked));
+  togglePaste.addEventListener('change', () => saveFeatureSetting('allowPaste', togglePaste.checked));
+  toggleSelect.addEventListener('change', () => saveFeatureSetting('allowSelect', toggleSelect.checked));
+  toggleShortcuts.addEventListener('change', () => saveFeatureSetting('allowShortcuts', toggleShortcuts.checked));
+  toggleAbsoluteMode.addEventListener('change', () => saveFeatureSetting('absoluteMode', toggleAbsoluteMode.checked));
 
   // Force Unlock Button Click
   forceUnlockBtn.addEventListener('click', async () => {
     if (!currentTab || !currentTab.id) return;
+
+    // Ensure site is enabled
+    if (currentHost) {
+      const current = await chrome.storage.local.get(defaults);
+      const sites = Array.isArray(current.enabledSites) ? [...current.enabledSites] : [];
+      if (!sites.includes(currentHost)) {
+        sites.push(currentHost);
+        await chrome.storage.local.set({ enabledSites: sites });
+      }
+      updateSiteActivationUI(true);
+    }
 
     const originalContent = forceUnlockBtn.innerHTML;
     forceUnlockBtn.innerHTML = '<span class="btn-icon">✓</span><span class="btn-text">Unlocked!</span>';

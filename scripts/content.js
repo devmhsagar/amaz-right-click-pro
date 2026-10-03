@@ -1,6 +1,6 @@
 /**
  * Amaz Right Click Pro - Content Script (Isolated World)
- * Ultra-lightweight DOM sweeper, Ctrl+Click / New Tab unblocker, and settings sync.
+ * Per-site activation, zero background loop, no duplicate copy, and e-GP tender form unblocker.
  */
 
 (function () {
@@ -12,8 +12,11 @@
   const currentHost = window.location.hostname.toLowerCase();
   const isEprocure = currentHost.includes('eprocure.gov.bd');
 
+  // Default configuration (Per-site activation mode by default)
   let config = {
     enabled: true,
+    globalMode: false,
+    enabledSites: ['eprocure.gov.bd'],
     absoluteMode: false,
     allowRightClick: true,
     allowCopy: true,
@@ -21,16 +24,20 @@
     allowSelect: true,
     allowShortcuts: true,
     allowNewTab: true,
-    suppressAlerts: true,
-    disabledSites: []
+    suppressAlerts: true
   };
 
-  function isSiteDisabled() {
-    return Array.isArray(config.disabledSites) && config.disabledSites.includes(currentHost);
+  function isSiteActive() {
+    if (config.globalMode) return true;
+    if (!Array.isArray(config.enabledSites) || !currentHost) return false;
+    return config.enabledSites.some(site => {
+      const s = site.toLowerCase().trim();
+      return currentHost === s || currentHost.endsWith('.' + s);
+    });
   }
 
   function isActive() {
-    return config.enabled && !isSiteDisabled();
+    return config.enabled && isSiteActive();
   }
 
   async function loadConfig() {
@@ -107,7 +114,6 @@
     }
   }
 
-  // Fast targeted sweeper: only touches elements that have blocker attributes
   function sweepTargetedBlockers(rootNode = document) {
     if (!isActive()) return;
 
@@ -121,7 +127,7 @@
   }
 
   /* -------------------------------------------------------------
-   * Lightweight Debounced MutationObserver
+   * Lightweight Debounced MutationObserver (Only runs when site is active)
    * ----------------------------------------------------------- */
   let observer = null;
   let debounceTimer = null;
@@ -153,7 +159,6 @@
     if (!isActive()) return;
 
     observer = new MutationObserver((mutations) => {
-      // Use requestAnimationFrame debounce so mutations never freeze UI
       if (debounceTimer) cancelAnimationFrame(debounceTimer);
       debounceTimer = requestAnimationFrame(() => {
         handleMutations(mutations);
@@ -188,11 +193,9 @@
     const handleLinkCtrlClick = (e) => {
       if (!isActive() || !config.allowNewTab) return;
 
-      // If user holds Ctrl, Cmd, Shift, or Middle Click (button 1)
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) {
         const anchor = e.target.closest ? e.target.closest('a') : null;
         if (anchor && anchor.href && !anchor.href.startsWith('javascript:')) {
-          // Stop website script from blocking new tab
           e.stopImmediatePropagation();
         }
       }
@@ -211,24 +214,9 @@
       }
     }, { capture: true, passive: false });
 
-    // 3. Selection & Clipboard
+    // 3. Selection
     window.addEventListener('selectstart', (e) => {
       if (!isActive() || !config.allowSelect) return;
-      if (config.absoluteMode) e.stopPropagation();
-    }, { capture: true, passive: false });
-
-    window.addEventListener('copy', (e) => {
-      if (!isActive() || !config.allowCopy) return;
-      if (config.absoluteMode) e.stopPropagation();
-    }, { capture: true, passive: false });
-
-    window.addEventListener('cut', (e) => {
-      if (!isActive() || !config.allowCopy) return;
-      if (config.absoluteMode) e.stopPropagation();
-    }, { capture: true, passive: false });
-
-    window.addEventListener('paste', (e) => {
-      if (!isActive() || !config.allowPaste) return;
       if (config.absoluteMode) e.stopPropagation();
     }, { capture: true, passive: false });
 
@@ -292,14 +280,13 @@
     syncWithMainWorld();
 
     if (active) {
-      // Add scoped class to html so styles apply
       if (document.documentElement) {
         document.documentElement.classList.add('amaz-unlocked');
       }
       sweepTargetedBlockers();
       startObserver();
     } else {
-      // Extension is OFF: completely remove unlock styles and disconnect observer!
+      // Not active on this site: completely clean up
       if (document.documentElement) {
         document.documentElement.classList.remove('amaz-unlocked');
       }
@@ -318,7 +305,8 @@
         config: config,
         hostname: currentHost,
         isEprocure: isEprocure,
-        isSiteDisabled: isSiteDisabled(),
+        isSiteActive: isSiteActive(),
+        isActive: isActive(),
         isTopFrame: (window.top === window)
       });
       return true;
@@ -327,11 +315,20 @@
     if (request.action === 'UPDATE_CONFIG') {
       config = { ...config, ...request.payload };
       applyState();
-      sendResponse({ success: true, config: config });
+      sendResponse({ success: true, config: config, isSiteActive: isSiteActive() });
       return true;
     }
 
     if (request.action === 'FORCE_UNLOCK') {
+      // If user clicks force unlock, ensure current site is added to enabledSites
+      if (!isSiteActive()) {
+        const sites = Array.isArray(config.enabledSites) ? [...config.enabledSites] : [];
+        if (!sites.includes(currentHost)) {
+          sites.push(currentHost);
+          config.enabledSites = sites;
+          chrome.storage.local.set({ enabledSites: sites });
+        }
+      }
       config.enabled = true;
       applyState();
       sweepTargetedBlockers();

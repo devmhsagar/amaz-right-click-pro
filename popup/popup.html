@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="popup-container">
-    <!-- Header Section with Single Master Toggle -->
+    <!-- Header Section -->
     <header class="header">
       <div class="brand">
         <div class="logo-wrapper">
@@ -23,11 +23,9 @@
           <p class="brand-subtitle">Smart Unblocker & Form Enabler</p>
         </div>
       </div>
-      <div class="master-switch-wrapper">
-        <label class="switch" title="Master Toggle (ON / OFF)">
-          <input type="checkbox" id="masterToggle" checked>
-          <span class="slider round"></span>
-        </label>
+      <div class="site-status-badge" id="siteStatusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="siteStatusText">Active</span>
       </div>
     </header>
 
@@ -41,15 +39,17 @@
       <div class="egp-badge">Ready</div>
     </div>
 
-    <!-- Current Site Status Card (Single Unified Status) -->
-    <div class="site-card">
-      <div class="site-info">
-        <span class="site-label">Current Website</span>
-        <span class="site-domain" id="siteDomain">Detecting...</span>
+    <!-- Main Site Activation Card (Single Clear Switch) -->
+    <div class="site-activation-card" id="siteActivationCard">
+      <div class="activation-left">
+        <div class="activation-label">Enable on this site</div>
+        <div class="activation-domain" id="siteDomain">Detecting...</div>
       </div>
-      <div class="site-status-badge" id="siteStatusBadge">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="siteStatusText">Active</span>
+      <div class="activation-switch-wrapper">
+        <label class="switch lg" title="Toggle extension for this website">
+          <input type="checkbox" id="siteToggle">
+          <span class="slider round"></span>
+        </label>
       </div>
     </div>
 
@@ -61,8 +61,13 @@
       </button>
     </div>
 
-    <!-- Feature Switches List -->
-    <div class="features-list">
+    <!-- Off Notice Banner (Shows when current site is disabled) -->
+    <div class="off-notice" id="offNotice" style="display: none;">
+      <span>🔒 Extension is OFF on this site. Turn ON above to activate features.</span>
+    </div>
+
+    <!-- Feature Switches List (Dims when extension is OFF) -->
+    <div class="features-list" id="featuresContainer">
       <!-- Right Click -->
       <div class="feature-item">
         <div class="feature-left">
@@ -99,7 +104,7 @@
           <span class="feature-icon">📋</span>
           <div class="feature-meta">
             <span class="feature-name">Copy & Cut</span>
-            <span class="feature-desc">Unlock copying from restricted text</span>
+            <span class="feature-desc">Single clean copy (no duplicates)</span>
           </div>
         </div>
         <label class="switch sm">
@@ -179,8 +184,8 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span class="version-tag">Amaz Pro v1.1.0</span>
-      <span class="footer-status" id="footerStatus">System Running</span>
+      <span class="version-tag">Amaz Pro v1.2.0</span>
+      <span class="footer-status" id="footerStatus">Active (This Site)</span>
     </footer>
   </div>
 

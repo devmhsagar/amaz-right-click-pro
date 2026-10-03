@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Amaz Right Click Pro",
-  "version": "1.1.0",
-  "description": "Force enable right-click, Ctrl+Click (New Tab), text selection, copy/cut, and paste on restricted sites including eprocure.gov.bd.",
+  "version": "1.2.0",
+  "description": "Per-site right-click, Ctrl+Click (New Tab), clean copy/paste, and tender form unlocker.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
